@@ -43,9 +43,9 @@ bigStep :: Env -> Exp -> Set Double
 bigStep env e = case e of
   ENum   k     -> singleton k
   EVar   ident -> singleton $ getVal env ident
-  ETimes e1 e2 -> error $ undef e
-  EDiv   e1 e2 -> error $ undef e
-  EPlus  e1 e2 -> error $ undef e
+  ETimes e1 e2 -> Set.fromList [v1 * v2 | v1 <- Set.toList (bigStep env e1), v2 <- Set.toList (bigStep env e2)]
+  EDiv   e1 e2 -> Set.fromList [v1 / v2 | v1 <- Set.toList (bigStep env e1), v2 <- Set.toList (bigStep env e2), v2 /= 0]
+  EPlus  e1 e2 -> Set.fromList [v1 + v2 | v1 <- Set.toList (bigStep env e1), v2 <- Set.toList (bigStep env e2)]
 
 -- | Implements the small-step semantics. Note that this only gives one computation step.
 -- The return type is a _set_ because the small-step semantics don't prescribe an evaluation
@@ -57,8 +57,8 @@ smallStep (env, e) = case e of
   ENum   _     -> empty
   EVar   ident -> singleton (env, ENum $ getVal env ident)
   ETimes e1 e2 -> binaryS e1 e2 (\x -> Just . (*) x) ETimes
-  EDiv   e1 e2 -> error $ undef e
-  EPlus  e1 e2 -> error $ undef e
+  EDiv   e1 e2 -> binaryS e1 e2 (\x y -> if y /= 0 then Just (x / y) else Nothing) EDiv
+  EPlus  e1 e2 -> binaryS e1 e2 (\x -> Just . (+) x) EPlus
 
   where
     binaryS :: Exp -> Exp ->
