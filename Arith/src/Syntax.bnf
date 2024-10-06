@@ -1,0 +1,13 @@
+entrypoints Exp, Env ;
+
+ENum.   Exp2 ::= Double ;
+EVar.   Exp2 ::= Ident ;
+ETimes. Exp1 ::= Exp1 "*" Exp2 ;
+EDiv.   Exp1 ::= Exp1 "/" Exp2 ;
+EPlus.  Exp  ::= Exp  "+" Exp1 ;
+
+coercions Exp 2 ;
+
+Assign. Assign ::= Ident "=" Double ;
+separator Assign "," ;
+Env. Env ::= [Assign] ;

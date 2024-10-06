@@ -1,0 +1,59 @@
+name:                Arith
+version:             0.1.0.0
+github:              "githubuser/Arith"
+license:             BSD3
+author:              "Henning Basold"
+maintainer:          "henning@basold.eu"
+copyright:           "2020--2022 Henning Basold"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+- src/Syntax/Lex.x
+- src/Syntax/Par.y
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            education
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/Simp#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- array
+- containers
+
+build-tools:
+- alex
+- happy
+
+# build-tool-depends: BNFC:bnfc >= 2.8.3
+
+library:
+  source-dirs: src
+
+executables:
+  Arith-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - Arith
+
+tests:
+  Arith-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - Arith
+    - HUnit

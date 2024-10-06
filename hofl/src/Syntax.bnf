@@ -1,0 +1,65 @@
+entrypoints Type, Exp, Environment ;
+
+comment "#" ;
+
+token Neg   ('¬' | '~') ;
+token And   ('∧' | '&''&') ;
+token Or    ('∨' | '|''|') ;
+token Lam   ('λ' | '\\') ;
+token Times ('×' | '*') ;
+token To    ('→' | '-''>') ;
+
+TInt.  Type2 ::= "int" ;
+TBool. Type2 ::= "bool" ;
+TPRod. Type1 ::= Type1 Times Type2 ;
+TFun.  Type  ::= Type1 To Type ;
+
+coercions Type 2 ;
+
+-- Boolean constants
+BTrue.   BConst ::= "true" ;
+BFalse.  BConst ::= "false" ;
+
+-- Atoms
+Var.  Exp10 ::= Ident ;
+Val.  Exp10 ::= Integer ;
+BVal. Exp10 ::= BConst ;
+
+-- Function application
+App.   Exp9 ::= Exp9 Exp10 ;
+Fst.   Exp9 ::= "fst" Exp10 ;
+Snd.   Exp9 ::= "snd" Exp10 ;
+
+-- Multiplication type operators
+Mul.   Exp8 ::= Exp8 "*" Exp9 ;
+-- Div.   Exp8 ::= Exp8 "/" Exp9 ;
+
+-- Addition type operators
+Add.   Exp7 ::= Exp7 "+" Exp8 ;
+Sub.   Exp7 ::= Exp7 "-" Exp8 ;
+
+-- Pairing operator
+Pair.  Exp6 ::= Exp7 "," Exp6 ;
+
+-- Boolean expressions
+BEq.    Exp5 ::= Exp6 "==" Exp6 ;
+BLeq.   Exp5 ::= Exp6 "<=" Exp6 ;
+BNeg.   Exp4 ::= Neg Exp5 ;
+BAnd.   Exp3 ::= Exp3 And Exp4 ;
+BOr.    Exp3 ::= Exp3 Or Exp4 ;
+
+-- If-then-else
+Ite.   Exp2 ::= "if" Exp3 "then" Exp6 "else" Exp2 ;
+
+-- Binding operators
+Abstr. Exp1 ::= Lam Ident "." Exp1 ;
+Rec.   Exp1 ::= "rec" Ident "." Exp1 ;
+
+-- Expressions with explicit types
+Typed. Exp ::= Exp "::" Type ;
+
+coercions Exp 10 ;
+
+Assign. Assignment ::= Ident "=" Exp ;
+separator Assignment ";" ;
+Env. Environment ::= [Assignment] ;

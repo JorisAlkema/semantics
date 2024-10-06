@@ -1,0 +1,9 @@
+# Input: integers m and n
+# Output: A(m, n), where A is the Ackermann function
+
+(
+  rec f. λ m. λ n.
+      if      m <= 0 then n + 1
+      else if n <= 0 then f (m - 1) 1
+      else                f (m - 1) (f m (n - 1))
+) m n :: int

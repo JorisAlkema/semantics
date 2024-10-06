@@ -1,0 +1,12 @@
+# Input: integer n
+# Output: x holds the nth Fibonacci number
+
+x := 0;
+y := 1;
+
+(while 0 <= n - 1 do
+  z := x + y;
+  x := y;
+  y := z;
+  n := n - 1
+)

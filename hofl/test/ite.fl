@@ -1,0 +1,6 @@
+# Input: integer n
+# Output: 2*n
+
+(
+  if true then 2*n else 3+n :: int → int
+)

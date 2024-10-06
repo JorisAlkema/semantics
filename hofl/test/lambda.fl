@@ -1,0 +1,6 @@
+# Input: integer n
+# Output: 2*x
+
+(
+  λ x. if true then 2*x else 3+x
+) n

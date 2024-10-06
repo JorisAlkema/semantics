@@ -1,0 +1,35 @@
+# int -> bool consists of binary sequences (we ignore the negative numbers)
+# Thus, (int -> bool) -> bool is the type of predicates on these sequences.
+# The map below computes the maximum of the predicate or, in logical terms,
+# it outputs true iff ∃s : nat -> bool.p s holds (we write nat to clarify that
+# we only care about natural numbers).
+#
+# Input: a predicate p :: ((int -> bool) -> bool)
+# Output: true if p holds for some sequence
+#
+# Example: Running
+#   stack exec hofl-exe -- -e d "p = λs.s 1" test/cantor-max.fl
+# should return true
+
+(λfind. # let find = .... (see below)
+  (λp. p (find p)  :: ((int -> bool) -> bool) -> bool)
+)
+
+
+# Implementation of find
+# This map returns a sequence s, such that, if p holds for any sequence, then
+# p s is true. If p holds for no sequence, then p s is naturally false.
+((λcons. # let cons = .... (see below)
+  (rec f. λp.
+      if p (cons false (f (λs. p (cons false s))))  # test if the sequence has to start with 0
+      then  cons false (f (λs. p (cons false s)))  # if yes, prepend 0 to the constructed example
+      else  cons true  (f (λs. p (cons true  s)))  # otherwise, the example has to start with 1
+   :: ((int -> bool) -> bool) -> (int -> bool)
+  )
+)
+  # Implementation of cons
+  # Prepends the elements x to the sequence s
+  (λx. λs. λi. if i <= 0 then x else s (i-1) :: bool -> (int -> bool) -> (int -> bool))
+)
+
+p

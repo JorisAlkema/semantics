@@ -1,0 +1,39 @@
+entrypoints Com, Env ;
+
+comment "#" ;
+
+token Neg ('¬' | '~') ;
+token And ('∧' | '&''&') ;
+token Or ('∨' | '|''|') ;
+
+EInt.   AExp2 ::= Integer ;
+EVar.   AExp2 ::= Ident ;
+ETimes. AExp1 ::= AExp1 "*" AExp2 ;
+EPlus.  AExp  ::= AExp  "+" AExp1 ;
+ESub.   AExp  ::= AExp  "-" AExp1 ;
+
+coercions AExp 2 ;
+
+BTrue.   BVal ::= "true" ;
+BFalse.  BVal ::= "false" ;
+
+EVal.   BExp3 ::= BVal ;
+EEq.    BExp3 ::= AExp "==" AExp ;
+ELeq.   BExp3 ::= AExp "<=" AExp ;
+ENeg.   BExp2 ::= Neg BExp3 ;
+EAnd.   BExp1 ::= BExp1 And BExp2 ;
+AOr.    BExp  ::= BExp  Or BExp1 ;
+
+coercions BExp 3 ;
+
+CSkip.   Com2 ::= "skip" ;
+CAssign. Com2 ::= Ident ":=" AExp ;
+CSeq.    Com1 ::= Com2 ";" Com1 ;
+CIte.    Com  ::= "if" BExp "then" Com1 "else" Com ;
+CWhile.  Com  ::= "while" BExp "do" Com ;
+
+coercions Com 2 ;
+
+Assign. Assign ::= Ident "=" Integer ;
+separator Assign "," ;
+Env. Env ::= [Assign] ;

@@ -1,0 +1,61 @@
+name:                hofl
+version:             0.1.0.0
+github:              "githubuser/hofl"
+license:             BSD3
+author:              "Henning Basold"
+maintainer:          "henning@basold.eu"
+copyright:           "2020 Henning Basold"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+- src/Syntax/Lex.x
+- src/Syntax/Par.y
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/hofl#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- array
+- containers
+- hashable
+- unordered-containers >= 0.2.12.0
+- mtl
+- composition-prelude
+
+build-tools:
+- alex
+- happy
+
+library:
+  source-dirs: src
+
+executables:
+  hofl-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hofl
+
+tests:
+  hofl-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hofl
+    - HUnit

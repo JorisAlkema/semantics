@@ -1,0 +1,14 @@
+(while 0 <= x do
+  while 0 <= y do
+    if z == 1 ∧ ¬ x == 1 then
+      x := x - 1
+    else
+      if 0 <= z ∨ z <= 0 then
+        y := y - 1;
+        x := z;
+        x := x + 1
+      else
+        z := z + 1;
+        skip
+);
+(while z <= 0 do z := z + 1)
