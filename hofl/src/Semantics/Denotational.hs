@@ -92,29 +92,61 @@ thunkMap f env = pure $ VMap $ \d -> f d env
 
 denExp :: Exp -> R Domain
 denExp exp = case exp of
-  Var (Bound i _) -> getBound i
-  Var (Free x)    -> asks (getFree x) >>= denExp
-  Val v           -> pure $ dInt v
+ Var (Bound i _) -> getBound i
+  Var (Free x)    -> \env -> denExp (getFree x env) env
+  Val v           -> \env -> dInt v
   BVal b          -> evalBConst b
-  App e1 e2       -> failure exp
-  Fst e           -> failure exp
-  Snd e           -> failure exp
-  Mul e1 e2       -> failure exp
-  Add e1 e2       -> failure exp
-  Sub e1 e2       -> failure exp
-  Pair e1 e2      -> failure exp
-  BEq  e1 e2      -> failure exp
-  BLeq e1 e2      -> failure exp
-  BNeg _  b1      -> failure exp
-  BAnd b1 _ b2    -> failure exp
-  BOr  b1 _ b2    -> failure exp
-  Ite bexp e1 e2  -> failure exp
-  -- [[λx.e]] ρ v = [[e]] ρ[x |-> v]
-  Abstr _ e       -> failure exp
-  -- [[rec x. e]] ρ = fix(v |-> [[e]] ρ[x |-> v])
-  Rec e           -> failure exp
-  -- Typing annotations are a no-op
+  App e1 e2       -> \env ->
+    denExp e1 env >>= \v1 ->
+    denExp e2 env >>= \v2 ->
+    case v1 of
+      VMap f -> f v2
+      _      -> error $ "Expected function in app, got: " ++ show v1
+  Fst e           -> \env ->
+    denExp e env >>= \v ->
+    case v of
+      VPair d1 _ -> d1
+      _          -> error $ "expected a pair in fst, got: " ++ show v
+  Snd e           -> \env ->
+    denExp e env >>= \v ->
+    case v of
+      VPair _ d2 -> d2
+      _          -> error $ "Expected a pair in snd, got: " ++ show v
+  Mul e1 e2       -> evalInt2 (*) e1 e2
+  Add e1 e2       -> evalInt2 (+) e1 e2
+  Sub e1 e2       -> evalInt2 (-) e1 e2
+  Pair e1 e2      -> \env ->
+    denExp e1 env >>= \d1 ->
+    denExp e2 env >>= \d2 ->
+    pure $ VPair d1 d2
+  BEq e1 e2       -> \env ->
+    denExp e1 env >>= \d1 ->
+    denExp e2 env >>= \d2 ->
+    pure $ dBool (unsafeFromNow d1 == unsafeFromNow d2)
+  BLeq e1 e2      -> \env ->
+    denExp e1 env >>= \d1 ->
+    denExp e2 env >>= \d2 ->
+    case (unsafeFromNow d1, unsafeFromNow d2) of
+      (VInt n1, VInt n2) -> pure $ dBool (n1 <= n2)
+      _ -> error $ "Expected integer in BLeq, but got: " ++ show (unsafeFromNow d1) ++ " and " ++ show (unsafeFromNow d2)
+  BNeg _  b1      -> evalBool1 not b1
+  BAnd b1 _ b2    -> evalBool2 (&&) b1 b2
+  BOr  b1 _ b2    -> evalBool2 (||) b1 b2
+  Ite bexp e1 e2  -> \env ->
+    denExp bexp env >>= \cond ->
+    case unsafeFromNow cond of
+      VBool True  -> denExp e1 env
+      VBool False -> denExp e2 env
+      _           -> error $ "Expected Boolean in Ite, but got: " ++ show cond
+  Abstr _ e       -> thunkMap (\d -> bindValue d (Env (free env) (bound env)) >>= denExp e)
+  Rec x e         -> \env ->
+    let recursiveEnv = Env (free env) (bindValue (delayRec x e env) env)
+    in denExp e recursiveEnv
   Typed e ty      -> denExp e
+
+-- | Helper function to create a recursive delay
+delayRec :: String -> Exp -> Env -> Domain
+delayRec x e env = bot -- Placeholder; proper recursion is handled differently
 
 -- | Helper function that combines the outcome of calling denExp on two expressions
 -- with a binary integer operation.
