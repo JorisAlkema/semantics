@@ -32,13 +32,17 @@ denotation :: Env -> Exp -> D
 denotation env e = case e of
   ENum   k     -> Just k
   EVar   ident -> Just $ getVal env ident
-  ETimes e1 e2 -> error $ undef e
-  EDiv   e1 e2 -> error $ undef e
-  EPlus  e1 e2 -> error $ undef e
-
+  ETimes e1 e2 -> liftM2 (*) (denotation env e1) (denotation env e2) 
+  EDiv   e1 e2 -> do 
+    x <- denotation env e1
+    y <- denotation env e2
+    if y /= 0 then Just (x/y) else Nothing
+  EPlus  e1 e2 -> liftM2 (+) (denotation env e1) (denotation env e2) 
+-- ^ do notations allows us to check if y /= 0 before and then using Just or Nothing. 
 
 -- | Implements the big-step operational semantics. Note that bigStep can be a function because
 -- the relation is deterministic.
+
 bigStep :: Env -> Exp -> Set Double
 bigStep env e = case e of
   ENum   k     -> singleton k
@@ -46,6 +50,8 @@ bigStep env e = case e of
   ETimes e1 e2 -> Set.fromList [v1 * v2 | v1 <- Set.toList (bigStep env e1), v2 <- Set.toList (bigStep env e2)]
   EDiv   e1 e2 -> Set.fromList [v1 / v2 | v1 <- Set.toList (bigStep env e1), v2 <- Set.toList (bigStep env e2), v2 /= 0]
   EPlus  e1 e2 -> Set.fromList [v1 + v2 | v1 <- Set.toList (bigStep env e1), v2 <- Set.toList (bigStep env e2)]
+-- ^ I think I could have also used unionWith here but did not understand id and I ended up using just set to list and list comphrehansions
+
 
 -- | Implements the small-step semantics. Note that this only gives one computation step.
 -- The return type is a _set_ because the small-step semantics don't prescribe an evaluation
@@ -59,6 +65,7 @@ smallStep (env, e) = case e of
   ETimes e1 e2 -> binaryS e1 e2 (\x -> Just . (*) x) ETimes
   EDiv   e1 e2 -> binaryS e1 e2 (\x y -> if y /= 0 then Just (x / y) else Nothing) EDiv
   EPlus  e1 e2 -> binaryS e1 e2 (\x -> Just . (+) x) EPlus
+  -- ^ Using BinaryS so the maybe double type can be used. using Just and Nothing for the div. and always just for the plus and times.
 
   where
     binaryS :: Exp -> Exp ->

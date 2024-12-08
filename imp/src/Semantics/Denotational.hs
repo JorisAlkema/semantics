@@ -18,7 +18,11 @@ type D a = Mem -> Delay a
 evalCom :: Com -> D Mem
 evalCom c = case c of
   CSkip            -> pure -- η from lecture
-  CAssign x  e     -> failure c
-  CSeq    c1 c2    -> failure c
-  CIte    b  c1 c2 -> failure c
-  CWhile  b  c1    -> failure c
+  CAssign x  e     -> \mem -> Now (updateMem x (evalAExp e mem) mem)
+  CSeq    c1 c2    -> \mem -> evalCom c1 mem >>= evalCom c2
+  CIte    b  c1 c2 -> \mem -> if evalBExp b mem 
+                              then evalCom c1 mem 
+                              else evalCom c2 mem
+  CWhile b c1      -> \mem -> if evalBExp b mem
+                              then Later (evalCom c1 mem >>= evalCom (CWhile b c1))
+                              else Now mem

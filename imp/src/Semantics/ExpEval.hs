@@ -26,9 +26,9 @@ evalBVal v m = case v of
 
 evalBExp :: BExp -> Mem -> Bool
 evalBExp b = case b of
-  EVal v       -> failure b
+  EVal v       -> evalBVal v
   EEq  a1 a2   -> liftA2 (==) (evalAExp a1) (evalAExp a2)
   ELeq a1 a2   -> liftA2 (<=) (evalAExp a1) (evalAExp a2)
-  ENeg _  b1   -> failure b
-  EAnd b1 _ b2 -> failure b
-  AOr  b1 _ b2 -> failure b
+  ENeg _  b1   -> not . evalBExp b1
+  EAnd b1 _ b2   -> liftA2 (&&) (evalBExp b1) (evalBExp b2) 
+  AOr b1 _ b2    -> liftA2 (||) (evalBExp b1) (evalBExp b2) 
