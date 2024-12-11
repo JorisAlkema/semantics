@@ -58,77 +58,61 @@ evalExp exp = case exp of
   Var (Free x)    -> asks (getVal x) >>= evalExp
   Val v           -> pure $ VInt v
   BVal b          -> evalBConst b
+
   App e1 e2       -> do
     v1 <- evalExp e1
     case v1 of
       VThunk (t@(Abstr _ _)) -> evalExp (removeBinder t e2)
-      _ -> error $ "Expected function in application"
-        
-    Fst e -> do
-      v <- evalExp e
-      case v of
-        VPair v1 _ -> pure v1
-        _ -> error $ "Expected pair in fst, but got: " ++ show v
+      _ -> error "Expected function in app"
 
-    Snd e -> do
-      v <- evalExp e
-      case v of
-        VPair _ v2 -> pure v2
-        _ -> error $ "Expected pair in snd, but got: " ++ show v
-    
-    Mul e1 e2 -> evalInt2 (*) e1 e2
-    Add e1 e2 -> evalInt2 (+) e1 e2
-    Sub e1 e2 -> evalInt2 (-) e1 e2
-    
-    Pair e1 e2 -> do
-      v1 <- evalExp e1
-      v2 <- evalExp e2
-      pure $ VPair v1 v2
-    
-    BEq e1 e2 -> do
-      v1 <- evalExp e1
-      v2 <- evalExp e2
-      case (v1, v2) of
-        (VInt n1, VInt n2)       -> pure $ VBool (n1 == n2)
-        (VBool b1, VBool b2)     -> pure $ VBool (b1 == b2)
-        (VPair a1 b1, VPair a2 b2) -> do
-          -- Deep comparison 
-          vA <- evalExp (BEq (toExp a1) (toExp a2))
-          vB <- evalExp (BEq (toExp b1) (toExp b2))
-          case (vA, vB) of
-            (VBool resA, VBool resB) -> pure $ VBool (resA && resB)
-            _ -> error "Type mismatch in pair comparison"
-        _ -> error $ "cannot compare " ++ show v1 ++ " and " ++ show v2"
+  Fst e           -> do
+    v <- evalExp e
+    case v of
+      VPair v1 _ -> pure v1
+      _           -> error "Expected a pair in Fst"
 
-    BLeq e1 e2 -> do
-      v1 <- evalExp e1
-      v2 <- evalExp e2
-      case (v1, v2) of
-        (VInt n1, VInt n2) -> pure $ VBool (n1 <= n2)
-        _ -> error $ "Expected integer values in BLeq, but got: " ++ show v1 ++ " and " ++ show v2
+  Snd e           -> do
+    v <- evalExp e
+    case v of
+      VPair _ v2 -> pure v2
+      _           -> error "Expected a pair in Snd"
 
-    BNeg _ b1 -> evalBool1 not b1
-    BAnd b1 _ b2 -> evalBool2 (&&) b1 b2
-    BOr b1 _ b2 -> evalBool2 (||) b1 b2
-    Ite bexp e1 e2 -> do
-      cond <- evalExp bexp
-      case cond of
-        VBool True  -> evalExp e1
-        VBool False -> evalExp e2
-        _ -> error $ "expected Boolean in Ite condition, got: " ++ show cond
+  Mul e1 e2       -> evalInt2 (*) e1 e2
+  Add e1 e2       -> evalInt2 (+) e1 e2
+  Sub e1 e2       -> evalInt2 (-) e1 e2
 
-    Abstr lam e -> pure $ VThunk (Abstr lam e)
+  Pair e1 e2      -> do
+    v1 <- evalExp e1
+    v2 <- evalExp e2
+    pure (VPair v1 v2)
 
-    Rec x e -> do
-      --create a thunk ther refers to itself
-      --in a new env where x is bound to that thunk
-      --we capture current env with local
-      env <- ask
-      let recursiveThunk = VThunk e
-      let extendedEnv = HM.insert x (toDeBruijnTree recursiveThunk) env
-      local (const extendedEnv) (evalExp e)
+  BEq e1 e2       -> do
+    v1 <- evalExp e1
+    v2 <- evalExp e2
+    pure (VBool (v1 == v2))
 
-    Typed e ty -> evalExp e
+  BLeq e1 e2      -> do
+    v1 <- evalExp e1
+    v2 <- evalExp e2
+    pure (VBool (v1 <= v2))
+
+  BNeg _ b1       -> evalBool1 not b1
+  BAnd b1 _ b2    -> evalBool2 (&&) b1 b2
+  BOr b1 _ b2     -> evalBool2 (||) b1 b2
+
+  Ite bexp e1 e2   -> do
+    vb <- evalExp bexp
+    case vb of
+      VBool True  -> evalExp e1
+      VBool False -> evalExp e2
+      _           -> error "Expected Boolean in if-else"
+
+  Abstr lam e       -> pure (VThunk (Abstr lam e))
+  
+  Rec e           -> evalExp (removeBinder (Rec e) (Rec e))
+
+  Typed e ty      -> evalExp e
+
 
 -- | Helper function that combines the outcome of calling evalExp on two expressions
 -- with a binary integer operation.

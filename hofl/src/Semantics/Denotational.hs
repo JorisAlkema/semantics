@@ -91,62 +91,74 @@ thunkMap :: (Domain -> R Domain) -> R Domain
 thunkMap f env = pure $ VMap $ \d -> f d env
 
 denExp :: Exp -> R Domain
-denExp exp = case exp of
- Var (Bound i _) -> getBound i
-  Var (Free x)    -> \env -> denExp (getFree x env) env
-  Val v           -> \env -> dInt v
-  BVal b          -> evalBConst b
-  App e1 e2       -> \env ->
-    denExp e1 env >>= \v1 ->
-    denExp e2 env >>= \v2 ->
-    case v1 of
-      VMap f -> f v2
-      _      -> error $ "Expected function in app, got: " ++ show v1
-  Fst e           -> \env ->
-    denExp e env >>= \v ->
-    case v of
-      VPair d1 _ -> d1
-      _          -> error $ "expected a pair in fst, got: " ++ show v
-  Snd e           -> \env ->
-    denExp e env >>= \v ->
-    case v of
-      VPair _ d2 -> d2
-      _          -> error $ "Expected a pair in snd, got: " ++ show v
-  Mul e1 e2       -> evalInt2 (*) e1 e2
-  Add e1 e2       -> evalInt2 (+) e1 e2
-  Sub e1 e2       -> evalInt2 (-) e1 e2
-  Pair e1 e2      -> \env ->
-    denExp e1 env >>= \d1 ->
-    denExp e2 env >>= \d2 ->
-    pure $ VPair d1 d2
-  BEq e1 e2       -> \env ->
-    denExp e1 env >>= \d1 ->
-    denExp e2 env >>= \d2 ->
-    pure $ dBool (unsafeFromNow d1 == unsafeFromNow d2)
-  BLeq e1 e2      -> \env ->
-    denExp e1 env >>= \d1 ->
-    denExp e2 env >>= \d2 ->
-    case (unsafeFromNow d1, unsafeFromNow d2) of
-      (VInt n1, VInt n2) -> pure $ dBool (n1 <= n2)
-      _ -> error $ "Expected integer in BLeq, but got: " ++ show (unsafeFromNow d1) ++ " and " ++ show (unsafeFromNow d2)
-  BNeg _  b1      -> evalBool1 not b1
-  BAnd b1 _ b2    -> evalBool2 (&&) b1 b2
-  BOr  b1 _ b2    -> evalBool2 (||) b1 b2
-  Ite bexp e1 e2  -> \env ->
-    denExp bexp env >>= \cond ->
-    case unsafeFromNow cond of
-      VBool True  -> denExp e1 env
-      VBool False -> denExp e2 env
-      _           -> error $ "Expected Boolean in Ite, but got: " ++ show cond
-  Abstr _ e       -> thunkMap (\d -> bindValue d (Env (free env) (bound env)) >>= denExp e)
-  Rec x e         -> \env ->
-    let recursiveEnv = Env (free env) (bindValue (delayRec x e env) env)
-    in denExp e recursiveEnv
-  Typed e ty      -> denExp e
+denExp exp env = case exp of
+  Var (Bound i _) -> getBound i env
+  Var (Free x)    -> denExp (getFree x env) env
+  Val v           -> dInt v
+  BVal b          -> evalBConst b env
 
--- | Helper function to create a recursive delay
-delayRec :: String -> Exp -> Env -> Domain
-delayRec x e env = bot -- Placeholder; proper recursion is handled differently
+  App e1 e2 ->
+    let vf = denExp e1 env
+        va = denExp e2 env
+    in case vf of
+         Now (VMap g) -> g va
+         Now _        -> error "Expected function in application"
+         Later _      -> Later (denExp (App e1 e2) env)
+
+  Fst e ->
+    let vp = denExp e env
+    in case vp of
+         Now (VPair d1 d2) -> d1
+         Now _             -> error "Expected a pair in Fst"
+         Later _           -> error "Non-terminating in Fst"
+
+  Snd e ->
+    let vp = denExp e env
+    in case vp of
+         Now (VPair d1 d2) -> d2
+         Now _             -> error "Expected a pair in Snd"
+         Later _           -> error "Non-terminating in Snd"
+
+  Mul e1 e2 -> evalInt2 (*) e1 e2 env
+  Add e1 e2 -> evalInt2 (+) e1 e2 env
+  Sub e1 e2 -> evalInt2 (-) e1 e2 env
+
+  Pair e1 e2 ->
+    let d1 = denExp e1 env
+        d2 = denExp e2 env
+    in Now (VPair d1 d2)
+
+  BEq e1 e2 ->
+    let d1 = denExp e1 env
+        d2 = denExp e2 env
+    in Now (VBool (d1 == d2))
+
+  BLeq e1 e2 ->
+    let d1 = denExp e1 env
+        d2 = denExp e2 env
+    in Now (VBool (d1 <= d2))
+
+  BNeg _ b1      -> evalBool1 not b1 env
+  BAnd b1 _ b2    -> evalBool2 (&&) b1 b2 env
+  BOr  b1 _ b2     -> evalBool2 (||) b1 b2 env
+
+  Ite bexp e1 e2 ->
+    let vb = denExp bexp env
+    in case vb of
+         Now (VBool True)  -> Later (denExp e1 env)
+         Now (VBool False) -> Later (denExp e2 env)
+         Now _             -> error "Expected Boolean in if-else"
+         Later _           -> Later (denExp (Ite bexp e1 e2) env)
+
+  Abstr lam e ->
+    Now (VMap (\d -> denExp e (bindValue d env)))
+
+  Rec e ->
+    mfix (\v -> denExp e (bindValue (Now v) env))
+
+  Typed e ty ->
+    denExp e env
+
 
 -- | Helper function that combines the outcome of calling denExp on two expressions
 -- with a binary integer operation.
