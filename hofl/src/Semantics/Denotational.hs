@@ -97,6 +97,18 @@ denExp exp env = case exp of
   Val v           -> dInt v
   BVal b          -> evalBConst b env
 
+  App e1 e2 -> \env -> do
+  cond  
+
+
+
+
+
+
+
+
+
+ #KANKER FOUT
   App e1 e2 ->
     let vf = denExp e1 env
         va = denExp e2 env
